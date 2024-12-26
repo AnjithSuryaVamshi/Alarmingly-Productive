@@ -6,34 +6,63 @@ import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
+import android.media.MediaPlayer
 import android.util.Log
 import androidx.core.app.NotificationCompat
 import com.example.todo_alarms.R
 
-class AlarmReceiver :  BroadcastReceiver() {
-    override fun onReceive(context: Context?, intent: Intent?) {
-        val action = intent?.action
-        val  alarmId = intent?.getIntExtra("id", 0)
-        val title = intent?.getStringExtra("title")
-        val todo = intent?.getStringExtra("todo")
-        val isSnooze = intent?.getBooleanExtra("isSnooze", false)
-        Log.d("AlarmReceiver", "onReceive triggered: action=$action, id=$alarmId, title=$title, todo=$todo")
-        when(action){
-            "ACTION_DISMISS"->{
-                if (context != null) {
-                    AlarmManagerClass(context).cancelAlarm(alarmId)
-                }
-            }
-            "ACTION_SNOOZE"->{
-                if (context != null) {
-                    AlarmManagerClass(context).scheduleSnooze(alarmId!!, 5 * 60 * 1000, title, todo)
-                }
+class AlarmReceiver : BroadcastReceiver() {
+    companion object {
+        private var mediaPlayer: MediaPlayer? = null
+    }
 
+    override fun onReceive(context: Context?, intent: Intent?) {
+        if (context == null || intent == null) return
+
+        val action = intent.action
+        val alarmId = intent.getIntExtra("id", 0)
+        val title = intent.getStringExtra("title") ?: "Alarm"
+        val todo = intent.getStringExtra("todo") ?: "To-do Reminder"
+
+        Log.d("AlarmReceiver", "onReceive triggered: action=$action, id=$alarmId, title=$title, todo=$todo")
+
+        when (action) {
+            "ACTION_DISMISS" -> {
+                stopAudio()
+                AlarmManagerClass(context).cancelAlarm(alarmId)
+                Log.d("AlarmReceiver", "Alarm dismissed for id=$alarmId")
             }
-            else->{
-                showFullScreenNotification(context!!,alarmId!!, title!!, todo!!)
+            "ACTION_SNOOZE" -> {
+                stopAudio()
+                AlarmManagerClass(context).scheduleSnooze(alarmId, 5 * 60 * 1000, title, todo)
+                Log.d("AlarmReceiver", "Alarm snoozed for id=$alarmId")
+            }
+            else -> {
+                playAudio(context)
+                showFullScreenNotification(context, alarmId, title, todo)
+                Log.d("AlarmReceiver", "Alarm triggered for id=$alarmId")
             }
         }
+    }
+
+    private fun playAudio(context: Context) {
+        stopAudio() // Ensure any previously playing audio is stopped
+        mediaPlayer = MediaPlayer.create(context, R.raw.gksong).apply {
+            isLooping = true // Loop audio
+            start() // Start playing audio
+            Log.d("AlarmReceiver", "Audio playback started")
+        }
+    }
+
+    private fun stopAudio() {
+        mediaPlayer?.let {
+            if (it.isPlaying) {
+                it.stop() // Stop the media player if it's playing
+                Log.d("AlarmReceiver", "Audio playback stopped")
+            }
+            it.release() // Release the resources
+        }
+        mediaPlayer = null // Clear the media player instance
     }
 
     private fun showFullScreenNotification(
@@ -43,7 +72,7 @@ class AlarmReceiver :  BroadcastReceiver() {
         todo: String
     ) {
         createNotificationChannel(context)
-        Log.d("AlarmReceiver", "Building notification for alarmId=$alarmId, title=$title, todo=$todo")
+
         val snoozeIntent = Intent(context, AlarmReceiver::class.java).apply {
             action = "ACTION_SNOOZE"
             putExtra("id", alarmId)
@@ -85,8 +114,8 @@ class AlarmReceiver :  BroadcastReceiver() {
 
         val notification = NotificationCompat.Builder(context, "alarm_channel")
             .setSmallIcon(R.drawable.ic_alarm)
-            .setContentTitle(title ?: "Alarm")
-            .setContentText(todo ?: "To-do Reminder")
+            .setContentTitle(title)
+            .setContentText(todo)
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
             .setFullScreenIntent(fullScreenPendingIntent, true)
@@ -102,7 +131,6 @@ class AlarmReceiver :  BroadcastReceiver() {
 
     private fun createNotificationChannel(context: Context) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
-            Log.d("AlarmReceiver", "Creating notification channel")
             val channel = NotificationChannel(
                 "alarm_channel",
                 "Alarm Notifications",

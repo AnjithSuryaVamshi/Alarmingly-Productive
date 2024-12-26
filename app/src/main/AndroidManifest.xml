@@ -2,9 +2,11 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:tools="http://schemas.android.com/tools">
 
+
     <uses-permission android:name="android.permission.USE_EXACT_ALARM" />
     <uses-permission android:name="android.permission.RECEIVE_BOOT_COMPLETED" />
     <uses-permission android:name="android.permission.POST_NOTIFICATIONS" />
+    <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
 
 
     <application
@@ -17,10 +19,12 @@
         android:supportsRtl="true"
         android:theme="@style/Theme.TodoAlarms"
         tools:targetApi="31">
+
         <activity
             android:name=".alarmmanager.AlarmActivity"
             android:exported="false"
-            android:theme="@style/Theme.TodoAlarms" />
+            android:theme="@android:style/Theme.DeviceDefault.Dialog.Alert" />
+
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -28,13 +32,16 @@
             android:theme="@style/Theme.TodoAlarms">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
-
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
         <receiver
             android:name=".alarmmanager.AlarmReceiver"
-            android:exported="true" />
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+            </intent-filter>
+        </receiver>
     </application>
-
 </manifest>
