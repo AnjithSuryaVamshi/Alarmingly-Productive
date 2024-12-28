@@ -19,7 +19,7 @@ class AlarmReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context?, intent: Intent?) {
         if (context == null || intent == null) return
 
-        val action = intent.action
+        var action = intent.action
         val alarmId = intent.getIntExtra("id", 0)
         val title = intent.getStringExtra("title") ?: "Alarm"
         val todo = intent.getStringExtra("todo") ?: "To-do Reminder"
@@ -27,42 +27,42 @@ class AlarmReceiver : BroadcastReceiver() {
         Log.d("AlarmReceiver", "onReceive triggered: action=$action, id=$alarmId, title=$title, todo=$todo")
 
         when (action) {
-            "ACTION_DISMISS" -> {
+            "ACTION_DISMISS", "ACTION_SNOOZE" -> {
+                val activityIntent = Intent(context, AlarmActivity::class.java).apply {
+                    putExtra("id", alarmId)
+                    putExtra("title", title)C:\Users\anjit\AndroidStudioProjects\TodoAlarms\app
+                    putExtra("todo", todo)
+                }
+                activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+                context.startActivity(activityIntent)
                 stopAudio()
-                AlarmManagerClass(context).cancelAlarm(alarmId)
-                Log.d("AlarmReceiver", "Alarm dismissed for id=$alarmId")
-            }
-            "ACTION_SNOOZE" -> {
-                stopAudio()
-                AlarmManagerClass(context).scheduleSnooze(alarmId, 5 * 60 * 1000, title, todo)
-                Log.d("AlarmReceiver", "Alarm snoozed for id=$alarmId")
             }
             else -> {
                 playAudio(context)
                 showFullScreenNotification(context, alarmId, title, todo)
-                Log.d("AlarmReceiver", "Alarm triggered for id=$alarmId")
             }
         }
+
     }
 
-    private fun playAudio(context: Context) {
-        stopAudio() // Ensure any previously playing audio is stopped
+    fun playAudio(context: Context) {
+        stopAudio()
         mediaPlayer = MediaPlayer.create(context, R.raw.gksong).apply {
-            isLooping = true // Loop audio
-            start() // Start playing audio
+            isLooping = true
+            start()
             Log.d("AlarmReceiver", "Audio playback started")
         }
     }
 
-    private fun stopAudio() {
+    fun stopAudio() {
         mediaPlayer?.let {
             if (it.isPlaying) {
-                it.stop() // Stop the media player if it's playing
+                it.stop()
                 Log.d("AlarmReceiver", "Audio playback stopped")
             }
-            it.release() // Release the resources
+            it.release()
         }
-        mediaPlayer = null // Clear the media player instance
+        mediaPlayer = null
     }
 
     private fun showFullScreenNotification(
@@ -73,17 +73,19 @@ class AlarmReceiver : BroadcastReceiver() {
     ) {
         createNotificationChannel(context)
 
-        val snoozeIntent = Intent(context, AlarmReceiver::class.java).apply {
+        val snoozeIntent = Intent(context, AlarmActivity::class.java).apply {
             action = "ACTION_SNOOZE"
             putExtra("id", alarmId)
             putExtra("title", title)
             putExtra("todo", todo)
         }
 
-        val dismissIntent = Intent(context, AlarmReceiver::class.java).apply {
+
+        val dismissIntent = Intent(context, AlarmActivity::class.java).apply {
             action = "ACTION_DISMISS"
             putExtra("id", alarmId)
         }
+
 
         val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
