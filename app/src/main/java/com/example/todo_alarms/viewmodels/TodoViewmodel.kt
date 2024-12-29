@@ -27,7 +27,7 @@ class TodoViewmodel(private val repository: TodoRepository) : ViewModel()  {
         }
         return result
     }
-     suspend fun getActiveTodos(): LiveData<List<TodoEntity>> {
+     suspend fun getActiveTodos(): List<TodoEntity> {
         return repository.getActiveTodos()
 
     }

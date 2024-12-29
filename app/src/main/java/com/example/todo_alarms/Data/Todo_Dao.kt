@@ -23,9 +23,9 @@ interface Todo_Dao {
     suspend fun updateTodo(todo: TodoEntity)
 
     @Query("SELECT * FROM todo_entity WHERE isCompleted = 0")
-    fun getActiveTodos(): LiveData<List<TodoEntity>>
+    suspend fun getActiveTodos(): List<TodoEntity>
 
-    @Query("SELECT COUNT(*) >0   FROM todo_entity WHERE  todo LIKE '%' || :userInput || '%'  AND isCompleted = 1 ")
+    @Query("SELECT COUNT(*) >0   FROM todo_entity WHERE  todo LIKE '%' || :userInput || '%'  AND isCompleted = 0 ")
     suspend fun isTodoPartiallyValid(userInput: String): Boolean
 
 }

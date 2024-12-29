@@ -97,7 +97,7 @@ fun TodoItem(
                 }
             }
 
-            // Delete icon to remove task
+
             IconButton(
                 onClick = { onDelete(todo) },
                 modifier = Modifier

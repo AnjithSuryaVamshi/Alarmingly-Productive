@@ -1,15 +1,20 @@
 package com.example.todo_alarms.alarmmanager
 
+import android.app.Notification
 import android.app.NotificationChannel
 import android.app.NotificationManager
 import android.app.PendingIntent
+import android.app.Service.START_NOT_STICKY
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import android.media.MediaPlayer
+import android.os.IBinder
 import android.util.Log
 import androidx.core.app.NotificationCompat
+import androidx.core.app.ServiceCompat.startForeground
 import com.example.todo_alarms.R
+import java.security.Provider
 
 class AlarmReceiver : BroadcastReceiver() {
     companion object {
@@ -24,19 +29,23 @@ class AlarmReceiver : BroadcastReceiver() {
         val title = intent.getStringExtra("title") ?: "Alarm"
         val todo = intent.getStringExtra("todo") ?: "To-do Reminder"
 
-        Log.d("AlarmReceiver", "onReceive triggered: action=$action, id=$alarmId, title=$title, todo=$todo")
+        Log.d(
+            "AlarmReceiver",
+            "onReceive triggered: action=$action, id=$alarmId, title=$title, todo=$todo"
+        )
 
         when (action) {
             "ACTION_DISMISS", "ACTION_SNOOZE" -> {
                 val activityIntent = Intent(context, AlarmActivity::class.java).apply {
                     putExtra("id", alarmId)
-                    putExtra("title", title)C:\Users\anjit\AndroidStudioProjects\TodoAlarms\app
+                    putExtra("title", title)
                     putExtra("todo", todo)
                 }
                 activityIntent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
                 context.startActivity(activityIntent)
                 stopAudio()
             }
+
             else -> {
                 playAudio(context)
                 showFullScreenNotification(context, alarmId, title, todo)
@@ -73,63 +82,63 @@ class AlarmReceiver : BroadcastReceiver() {
     ) {
         createNotificationChannel(context)
 
+        val mainIntent = Intent(context, AlarmActivity::class.java).apply {
+            putExtra("id", alarmId)
+            putExtra("title", title)
+            putExtra("todo", todo)
+        }
+        val mainPendingIntent = PendingIntent.getActivity(
+            context,
+            alarmId,
+            mainIntent,
+            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
+        )
+
         val snoozeIntent = Intent(context, AlarmActivity::class.java).apply {
             action = "ACTION_SNOOZE"
             putExtra("id", alarmId)
             putExtra("title", title)
             putExtra("todo", todo)
         }
-
-
-        val dismissIntent = Intent(context, AlarmActivity::class.java).apply {
-            action = "ACTION_DISMISS"
-            putExtra("id", alarmId)
-        }
-
-
-        val snoozePendingIntent = PendingIntent.getBroadcast(
+        val snoozePendingIntent = PendingIntent.getActivity(
             context,
-            alarmId,
+            alarmId + 1,
             snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        val dismissPendingIntent = PendingIntent.getBroadcast(
-            context,
-            alarmId,
-            dismissIntent,
-            PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
-        )
-
-        val fullScreenIntent = Intent(context, AlarmActivity::class.java).apply {
+        val dismissIntent = Intent(context, AlarmActivity::class.java).apply {
+            action = "ACTION_DISMISS"
             putExtra("id", alarmId)
             putExtra("title", title)
             putExtra("todo", todo)
         }
-
-        val fullScreenPendingIntent = PendingIntent.getActivity(
+        val dismissPendingIntent = PendingIntent.getActivity(
             context,
-            alarmId,
-            fullScreenIntent,
+            alarmId + 2,
+            dismissIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
         val notification = NotificationCompat.Builder(context, "alarm_channel")
             .setSmallIcon(R.drawable.ic_alarm)
             .setContentTitle(title)
-            .setContentText(todo)
+            .setContentText("Click me to stop the alarm!")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_ALARM)
-            .setFullScreenIntent(fullScreenPendingIntent, true)
+            .setFullScreenIntent(mainPendingIntent, true)
             .addAction(R.drawable.ic_snooze, "Snooze", snoozePendingIntent)
             .addAction(R.drawable.ic_dismiss, "Dismiss", dismissPendingIntent)
             .setAutoCancel(true)
+            .setDefaults(NotificationCompat.DEFAULT_ALL)
+            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
             .build()
 
         val notificationManager =
             context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
         notificationManager.notify(alarmId, notification)
     }
+
 
     private fun createNotificationChannel(context: Context) {
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.O) {
@@ -139,8 +148,8 @@ class AlarmReceiver : BroadcastReceiver() {
                 NotificationManager.IMPORTANCE_HIGH
             ).apply {
                 description = "Channel for alarm notifications"
+                lockscreenVisibility = NotificationManager.IMPORTANCE_HIGH
             }
-
             val notificationManager =
                 context.getSystemService(Context.NOTIFICATION_SERVICE) as NotificationManager
             notificationManager.createNotificationChannel(channel)

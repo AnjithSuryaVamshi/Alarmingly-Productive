@@ -20,7 +20,7 @@ class TodoRepository(private val todoDao: Todo_Dao)  {
         return todoDao.isTodoPartiallyValid(userInput)
 
     }
-    suspend fun getActiveTodos(): LiveData<List<TodoEntity>> {
+    suspend fun getActiveTodos(): List<TodoEntity> {
         return todoDao.getActiveTodos()
 
     }

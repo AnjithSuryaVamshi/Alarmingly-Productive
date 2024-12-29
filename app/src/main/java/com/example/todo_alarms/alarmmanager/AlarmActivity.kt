@@ -18,12 +18,16 @@ import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.lifecycleScope
 import com.example.todo_alarms.Data.AppDataBase
 import com.example.todo_alarms.repositories.TodoRepository
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 class AlarmActivity : ComponentActivity() {
     private val repository: TodoRepository by lazy {
@@ -39,11 +43,12 @@ class AlarmActivity : ComponentActivity() {
         val todo = intent.getStringExtra("todo") ?: "To-do Reminder"
         val action = intent.action
         AlarmReceiver().playAudio(this)
-        if (action == "ACTION_SNOOZE") {
-            handleSnooze(alarmId, "")
-        } else if (action == "ACTION_DISMISS") {
-            handleDismiss(alarmId, "")
+        when (action) {
+            "ACTION_SNOOZE" -> handleSnooze(alarmId, "")
+            "ACTION_DISMISS" -> handleDismiss(alarmId, "")
         }
+
+
         setContent {
             FullScreenAlarmUI(
                 title = title,
@@ -53,17 +58,28 @@ class AlarmActivity : ComponentActivity() {
                 },
                 onDismiss = { userInput ->
                     handleDismiss(alarmId, userInput)
+                },
+                onTimeExpired = {
+                    lifecycleScope.launch {
+                        AlarmReceiver().stopAudio()
+                        Toast.makeText(
+                            this@AlarmActivity,
+                            "Alarm dismissed due to timeout.",
+                            Toast.LENGTH_SHORT
+                        ).show()
+                        finish()
+                    }
                 }
             )
         }
     }
-    private fun handleSnooze(alarmId: Int, userInput: String) {
+        private fun handleSnooze(alarmId: Int, userInput: String) {
         lifecycleScope.launch {
-            val todos = repository.getActiveTodos().value
-            if (todos.isNullOrEmpty() && userInput.isBlank()) {
+            val todos = repository.getActiveTodos()
+            if (todos.isEmpty() && userInput.isBlank()) {
                 proceedWithSnooze(alarmId)
-            } else if (repository.isTodoPartiallyValid(userInput)) {
-                Toast.makeText(this@AlarmActivity, "Task is already completed. Enter a valid To-Do.", Toast.LENGTH_SHORT).show()
+            } else if (!repository.isTodoPartiallyValid(userInput)) {
+                Toast.makeText(this@AlarmActivity, "Enter a valid To-Do.", Toast.LENGTH_SHORT).show()
             } else if (userInput.isBlank()) {
                 Toast.makeText(this@AlarmActivity, "Please enter a valid To-Do.", Toast.LENGTH_SHORT).show()
             } else {
@@ -74,11 +90,11 @@ class AlarmActivity : ComponentActivity() {
 
     private fun handleDismiss(alarmId: Int, userInput: String) {
         lifecycleScope.launch {
-            val todos = repository.getActiveTodos().value
-            if (todos.isNullOrEmpty() && userInput.isBlank()) {
+            val todos = repository.getActiveTodos()
+            if (todos.isEmpty() && userInput.isBlank()) {
                 proceedWithDismiss(alarmId)
-            } else if (repository.isTodoPartiallyValid(userInput)) {
-                Toast.makeText(this@AlarmActivity, "Task is already completed. Enter a valid To-Do.", Toast.LENGTH_SHORT).show()
+            } else if (!repository.isTodoPartiallyValid(userInput)) {
+                Toast.makeText(this@AlarmActivity, "Enter a valid To-Do.", Toast.LENGTH_SHORT).show()
             } else if (userInput.isBlank()) {
                 Toast.makeText(this@AlarmActivity, "Please enter a valid To-Do.", Toast.LENGTH_SHORT).show()
             } else {
@@ -89,8 +105,13 @@ class AlarmActivity : ComponentActivity() {
 
     private fun proceedWithSnooze(alarmId: Int) {
         AlarmReceiver().stopAudio()
-        AlarmManagerClass(this@AlarmActivity).scheduleSnooze(alarmId, 5 * 60 * 1000, null, null)
-        Toast.makeText(this@AlarmActivity, "Alarm snoozed!", Toast.LENGTH_SHORT).show()
+        AlarmManagerClass(this).scheduleSnooze(
+            alarmId = alarmId,
+            delayMillis = 1 * 60 * 1000,
+            title = "Snoozed Alarm",
+            todo = null
+        )
+        Toast.makeText(this, "Alarm snoozed for 5 minutes!", Toast.LENGTH_SHORT).show()
         finish()
     }
 
@@ -108,13 +129,21 @@ fun FullScreenAlarmUI(
     title: String,
     expectedTodo: String,
     onSnooze: (String) -> Unit,
-    onDismiss: (String) -> Unit
+    onDismiss: (String) -> Unit,
+    onTimeExpired: () -> Unit
 ) {
     var userInput by remember { mutableStateOf("") }
     var timeRemaining by remember { mutableStateOf(180) }
     val context = LocalContext.current
-    val primaryColor = MaterialTheme.colorScheme.primary
-    val secondaryColor = MaterialTheme.colorScheme.secondary
+    var currentTime by remember { mutableStateOf(getFormattedTime()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            currentTime = getFormattedTime()
+            delay(1000L)
+        }
+    }
+
+
 
     LaunchedEffect(Unit) {
         while (timeRemaining > 0) {
@@ -122,95 +151,121 @@ fun FullScreenAlarmUI(
             timeRemaining--
         }
         Toast.makeText(context, "Time expired. Alarm stopped.", Toast.LENGTH_SHORT).show()
+        onTimeExpired()
     }
+
 
     Column(
         modifier = Modifier
             .fillMaxSize()
-            .padding(16.dp)
             .background(MaterialTheme.colorScheme.background),
-        verticalArrangement = Arrangement.SpaceBetween,
+        verticalArrangement = Arrangement.SpaceEvenly,
         horizontalAlignment = Alignment.CenterHorizontally
     ) {
-        // Header
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier.fillMaxWidth()
-        ) {
-            Text(
-                text = title,
-                style = MaterialTheme.typography.titleLarge,
-                color = primaryColor,
-                modifier = Modifier.padding(8.dp)
-            )
-            Text(
-                text = "Enter a valid To-Do to stop the alarm:",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onBackground,
-                modifier = Modifier.padding(8.dp)
-            )
-        }
 
-        // Input Field
+        Text(
+            text = title,
+            style = MaterialTheme.typography.headlineMedium.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+
+        Text(
+            text = currentTime,
+            style = MaterialTheme.typography.displayLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+
+        Text(
+            text = "ENTER A VALID TO-DO",
+            style = MaterialTheme.typography.labelLarge.copy(
+                fontWeight = FontWeight.Bold
+            ),
+            color = MaterialTheme.colorScheme.onBackground
+        )
+
+
         OutlinedTextField(
             value = userInput,
             onValueChange = { userInput = it },
-            label = { Text("Enter To-Do") },
+            placeholder = { Text("Enter TO-DO Here") },
             colors = TextFieldDefaults.outlinedTextFieldColors(
-                focusedBorderColor = primaryColor,
-                unfocusedBorderColor = secondaryColor,
-                cursorColor = primaryColor
+                focusedBorderColor = MaterialTheme.colorScheme.onBackground,
+                unfocusedBorderColor = MaterialTheme.colorScheme.onBackground,
+                cursorColor = MaterialTheme.colorScheme.primary
             ),
             modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp)
+                .fillMaxWidth(0.8f)
+                .background(MaterialTheme.colorScheme.surface)
         )
 
-        // Timer and Actions
-        Column(
-            horizontalAlignment = Alignment.CenterHorizontally,
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(vertical = 16.dp)
-        ) {
+
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
             Text(
-                text = "Time remaining: $timeRemaining seconds",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.padding(8.dp)
+                text = "TIME REMAINING",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground
             )
-            Spacer(modifier = Modifier.height(16.dp))
-            Row(
+
+            Text(
+                text = "$timeRemaining",
+                style = MaterialTheme.typography.displayMedium.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+
+            Text(
+                text = "SECONDS",
+                style = MaterialTheme.typography.labelLarge.copy(
+                    fontWeight = FontWeight.Bold
+                ),
+                color = MaterialTheme.colorScheme.onBackground
+            )
+        }
+
+
+        Row(
+            modifier = Modifier.fillMaxWidth(0.8f),
+            horizontalArrangement = Arrangement.SpaceEvenly
+        ) {
+            Button(
+                onClick = { onSnooze(userInput) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant
+                ),
                 modifier = Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 16.dp),
-                horizontalArrangement = Arrangement.SpaceEvenly
+                    .weight(1f)
+                    .padding(horizontal = 8.dp)
             ) {
-                Button(
-                    onClick = { onSnooze(userInput) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = secondaryColor,
-                        contentColor = MaterialTheme.colorScheme.onSecondary
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp)
-                ) {
-                    Text("Snooze")
-                }
-                Button(
-                    onClick = { onDismiss(userInput) },
-                    colors = ButtonDefaults.buttonColors(
-                        containerColor = primaryColor,
-                        contentColor = MaterialTheme.colorScheme.onPrimary
-                    ),
-                    modifier = Modifier
-                        .weight(1f)
-                        .padding(8.dp)
-                ) {
-                    Text("Dismiss")
-                }
+                Text("SNOOZE", fontWeight = FontWeight.Bold)
+            }
+
+            Button(
+                onClick = { onDismiss(userInput) },
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MaterialTheme.colorScheme.primary,
+                    contentColor = MaterialTheme.colorScheme.onPrimary
+                ),
+                modifier = Modifier
+                    .weight(1f)
+                    .padding(horizontal = 8.dp)
+            ) {
+                Text("DISMISS", fontWeight = FontWeight.Bold)
             }
         }
     }
+}
+
+fun getFormattedTime(): String {
+    val dateFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
+    return dateFormat.format(Date())
 }

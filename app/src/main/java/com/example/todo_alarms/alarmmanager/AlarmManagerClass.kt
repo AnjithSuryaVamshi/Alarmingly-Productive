@@ -16,21 +16,17 @@ class AlarmManagerClass(
     private val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
 
     fun scheduleAlarm(alarm: AlarmEntity) {
+        // Check for exact alarm permission on Android 12+ devices
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
             if (!alarmManager.canScheduleExactAlarms()) {
                 requestExactAlarmPermission()
-                Log.d("AlarmManagerClass", "Exact alarm permission not granted.")
+                Log.w("AlarmManagerClass", "Exact alarm permission not granted.")
                 return
             }
         }
 
         if (alarm.isActive) {
-            val intent = Intent(context, AlarmReceiver::class.java).apply {
-                putExtra("title", alarm.title)
-                putExtra("todo", alarm.todo)
-                putExtra("id", alarm.id)
-                putExtra("isSnooze", false)
-            }
+            val intent = createAlarmIntent(alarm, isSnooze = false)
 
             val pendingIntent = PendingIntent.getBroadcast(
                 context,
@@ -44,38 +40,36 @@ class AlarmManagerClass(
                 alarm.time,
                 pendingIntent
             )
-            Log.d("AlarmManagerClass", "Alarm scheduled for time: ${alarm.time}")
+            Log.d("AlarmManagerClass", "Alarm scheduled: ID=${alarm.id}, Time=${alarm.time}")
+        } else {
+            Log.w("AlarmManagerClass", "Attempted to schedule inactive alarm: ID=${alarm.id}")
         }
     }
 
-    fun scheduleSnooze(alarmId: Int, snoozeTime: Long, title: String?, todo: String?) {
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-            if (!alarmManager.canScheduleExactAlarms()) {
-                requestExactAlarmPermission()
-                return
-            }
-        }
-
-        val intent = Intent(context, AlarmReceiver::class.java).apply {
-            putExtra("title", title)
-            putExtra("todo", todo)
+    fun scheduleSnooze(alarmId: Int, delayMillis: Long, title: String?, todo: String?) {
+        val snoozeIntent = Intent(context, AlarmReceiver::class.java).apply {
+            action = "ACTION_ALARM"
             putExtra("id", alarmId)
-            putExtra("isSnooze", true)
+            putExtra("title", title ?: "Alarm")
+            putExtra("todo", todo ?: "To-do Reminder")
+            putExtra("isSnooze", true) // Indicates this is a snooze alarm
         }
 
-        val pendingIntent = PendingIntent.getBroadcast(
+        val snoozePendingIntent = PendingIntent.getBroadcast(
             context,
             alarmId,
-            intent,
+            snoozeIntent,
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
         )
 
-        alarmManager.setAndAllowWhileIdle(
+        val triggerAtMillis = System.currentTimeMillis() + delayMillis
+        alarmManager.setExactAndAllowWhileIdle(
             AlarmManager.RTC_WAKEUP,
-            System.currentTimeMillis() + snoozeTime,
-            pendingIntent
+            triggerAtMillis,
+            snoozePendingIntent
         )
-        Log.d("AlarmManagerClass", "Snooze scheduled for $snoozeTime ms")
+
+        Log.d("AlarmManagerClass", "Snooze scheduled: ID=$alarmId, TriggerAt=$triggerAtMillis")
     }
 
     fun cancelAlarm(alarmId: Int?) {
@@ -88,13 +82,29 @@ class AlarmManagerClass(
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE
             )
             alarmManager.cancel(pendingIntent)
-            Log.d("AlarmManagerClass", "Alarm canceled for ID: $alarmId")
+            Log.d("AlarmManagerClass", "Alarm canceled: ID=$alarmId")
+        } ?: run {
+            Log.w("AlarmManagerClass", "Attempted to cancel alarm with null ID")
         }
     }
 
     @RequiresApi(Build.VERSION_CODES.S)
     private fun requestExactAlarmPermission() {
-        val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
-        context.startActivity(intent)
+        try {
+            val intent = Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM)
+            intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
+            context.startActivity(intent)
+        } catch (e: Exception) {
+            Log.e("AlarmManagerClass", "Failed to request exact alarm permission", e)
+        }
+    }
+
+    private fun createAlarmIntent(alarm: AlarmEntity, isSnooze: Boolean): Intent {
+        return Intent(context, AlarmReceiver::class.java).apply {
+            putExtra("title", alarm.title)
+            putExtra("todo", alarm.todo)
+            putExtra("id", alarm.id)
+            putExtra("isSnooze", isSnooze)
+        }
     }
 }
