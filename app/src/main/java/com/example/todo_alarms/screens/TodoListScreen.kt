@@ -139,7 +139,7 @@ fun TodoListScreen(todoViewmodel: TodoViewmodel) {
                     modifier = Modifier.size(200.dp)
                 )
                 Spacer(modifier = Modifier.height(16.dp))
-                Text(text = "No tasks to do", modifier = Modifier, fontSize = 24.sp)
+                Text(text = "No tasks to do", modifier = Modifier, fontSize = 24.sp, fontWeight = FontWeight.Bold)
             }
 
         }

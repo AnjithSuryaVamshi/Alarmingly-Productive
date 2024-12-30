@@ -1,22 +1,18 @@
 package com.example.todo_alarms.nav
 
-import androidx.compose.foundation.layout.height
+import android.view.WindowInsets
+import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.ChecklistRtl
-import androidx.compose.material.icons.filled.List
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.Text
+import androidx.compose.material3.*
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
-
-
+import androidx.navigation.compose.currentBackStackEntryAsState
 
 sealed class Screen(val route: String, val label: String) {
     object Todo : Screen(Routes.todo_screen, "To-do")
@@ -25,13 +21,22 @@ sealed class Screen(val route: String, val label: String) {
 
 @Composable
 fun BottomNavBar(navController: NavController) {
-
     val items = remember { listOf(Screen.Todo, Screen.Alarm) }
 
+    
+    val navBackStackEntry = navController.currentBackStackEntryAsState()
+    val currentRoute = navBackStackEntry.value?.destination?.route
+
     NavigationBar(
-        modifier = Modifier.height(56.dp)
+        modifier = Modifier
+            .fillMaxWidth()
+            .navigationBarsPadding()
+            .height(56.dp),
+        tonalElevation = 4.dp,
+        containerColor = MaterialTheme.colorScheme.surface
     ) {
         items.forEach { screen ->
+            val isSelected = currentRoute == screen.route
             NavigationBarItem(
                 icon = {
                     Icon(
@@ -40,20 +45,20 @@ fun BottomNavBar(navController: NavController) {
                     )
                 },
                 label = { Text(screen.label) },
-                selected = navController.currentDestination?.route == screen.route,
+                selected = isSelected,
                 onClick = {
-                    navController.navigate(screen.route) {
-
-                        popUpTo(navController.graph.startDestinationId) { saveState = true }
-                        launchSingleTop = true
-                        restoreState = true
+                    if (!isSelected) {
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.startDestinationId) { saveState = true }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 }
             )
         }
     }
 }
-
 
 private fun getIconForScreen(screen: Screen): ImageVector {
     return when (screen) {

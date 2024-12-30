@@ -1,24 +1,11 @@
 package com.example.todo_alarms.screens
 
 import android.widget.Toast
-import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.getValue
+import androidx.compose.foundation.layout.*
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
 import com.example.todo_alarms.Data.AlarmEntity
@@ -28,6 +15,7 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun AlarmDialog(
     openDialog: Boolean,
@@ -55,23 +43,46 @@ fun AlarmDialog(
 
         AlertDialog(
             onDismissRequest = { onDismiss() },
-            title = { Text(text = "Set Alarm") },
+            title = {
+                Text(
+                    text = "Set Alarm",
+                    style = MaterialTheme.typography.headlineSmall,
+                    color = MaterialTheme.colorScheme.onBackground
+                )
+            },
             text = {
                 Column(
-                    modifier = Modifier.padding(16.dp)
+                    modifier = Modifier
+                        .padding(16.dp)
+                        .fillMaxWidth()
                 ) {
                     TextField(
                         value = alarmTitle,
                         onValueChange = { alarmTitle = it },
                         label = { Text("Alarm Title") },
+                        colors = TextFieldDefaults.textFieldColors(
+                            focusedLabelColor = MaterialTheme.colorScheme.primary,
+                            unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                            unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                            containerColor = MaterialTheme.colorScheme.surface,
+                            cursorColor = MaterialTheme.colorScheme.primary
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     )
+
                     Spacer(modifier = Modifier.height(16.dp))
                     OutlinedButton(
                         onClick = { isTimePickerVisible = true },
+                        colors = ButtonDefaults.outlinedButtonColors(
+                            containerColor = MaterialTheme.colorScheme.primary,
+                            contentColor = MaterialTheme.colorScheme.onPrimary
+                        ),
                         modifier = Modifier.fillMaxWidth()
                     ) {
-                        Text(text = if (alarmTime.isEmpty()) "Select Time" else "Time: $alarmTime")
+                        Text(
+                            text = if (alarmTime.isEmpty()) "Select Time" else "Time: $alarmTime"
+                        )
                     }
                     if (isTimePickerVisible) {
                         TimePickerDialog(
@@ -87,14 +98,23 @@ fun AlarmDialog(
                         TextField(
                             value = alarmTodo,
                             onValueChange = { alarmTodo = it },
-                            label = { Text("Your Todo list is empty !! Add a task") },
+                            label = { Text("Your Todo list is empty! Add a task") },
+                            colors = TextFieldDefaults.textFieldColors(
+                                focusedLabelColor = MaterialTheme.colorScheme.primary,
+                                unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                focusedIndicatorColor = MaterialTheme.colorScheme.primary,
+                                unfocusedIndicatorColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                                containerColor = MaterialTheme.colorScheme.surface,
+                                cursorColor = MaterialTheme.colorScheme.primary
+                            ),
                             modifier = Modifier.fillMaxWidth()
                         )
+
                         Spacer(modifier = Modifier.height(8.dp))
                         Text(
                             text = "Adding this To-do will also save it in your To-do list.",
                             style = MaterialTheme.typography.bodySmall,
-                            color = Color.Gray
+                            color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
                     }
                 }
@@ -126,28 +146,37 @@ fun AlarmDialog(
                             )
                             onDismiss()
                         }
-                    }
+                    },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.primary,
+                        contentColor = MaterialTheme.colorScheme.onPrimary
+                    )
                 ) {
                     Text("Save")
                 }
             },
             dismissButton = {
                 OutlinedButton(
-                    onClick = { onDismiss() }) {
+                    onClick = { onDismiss() },
+                    colors = ButtonDefaults.outlinedButtonColors(
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        contentColor = MaterialTheme.colorScheme.onSurface
+                    )
+                ) {
                     Text("Cancel")
                 }
-            }
+            },
+            containerColor = MaterialTheme.colorScheme.background,
+            tonalElevation = 4.dp
         )
     }
 }
-
 
 fun parseTimeToMillis(time: String): Long {
     val timeFormat = SimpleDateFormat("HH:mm", Locale.getDefault()) // 24-hour time format
     val date = timeFormat.parse(time) ?: throw IllegalArgumentException("Invalid time format")
     val calendar = Calendar.getInstance()
     calendar.time = date
-
 
     val now = Calendar.getInstance()
     calendar.set(Calendar.YEAR, now.get(Calendar.YEAR))

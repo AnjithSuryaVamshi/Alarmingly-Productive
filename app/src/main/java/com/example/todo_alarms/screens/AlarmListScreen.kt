@@ -9,30 +9,20 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.getValue
+import androidx.compose.runtime.*
 import androidx.compose.runtime.livedata.observeAsState
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.lifecycle.MutableLiveData
 import com.example.todo_alarms.Data.AlarmEntity
 import com.example.todo_alarms.R
 import com.example.todo_alarms.viewmodels.AlarmViewmodel
 import kotlinx.coroutines.delay
 import java.text.SimpleDateFormat
-import java.util.Calendar
-import java.util.Date
-import java.util.Locale
+import java.util.*
 
 fun formatTime(alarmTimeInMillis: Long): String {
     val calendar = Calendar.getInstance().apply { timeInMillis = alarmTimeInMillis }
@@ -47,16 +37,15 @@ fun AlarmItemCard(
     onToggle: (AlarmEntity) -> Unit,
     onDelete: (AlarmEntity) -> Unit
 ) {
-
     Card(
         modifier = Modifier
             .fillMaxWidth()
             .padding(vertical = 8.dp),
         shape = RoundedCornerShape(12.dp),
-        elevation = CardDefaults.cardElevation(8.dp),
+        elevation = CardDefaults.cardElevation(4.dp),
         colors = CardDefaults.cardColors(
-            containerColor = Color(0xFFEDEDED),
-            contentColor = Color.Black
+            containerColor = MaterialTheme.colorScheme.surface,
+            contentColor = MaterialTheme.colorScheme.onSurface
         )
     ) {
         Row(
@@ -70,15 +59,15 @@ fun AlarmItemCard(
                     Text(
                         text = it,
                         fontSize = 16.sp,
-                        color = Color(0xFF666666)
+                        color = MaterialTheme.colorScheme.onSurfaceVariant
                     )
                 }
                 Spacer(modifier = Modifier.height(4.dp))
                 Text(
-                    text = "${formatTime(alarm.time)}",
+                    text = formatTime(alarm.time),
                     fontSize = 24.sp,
                     fontWeight = FontWeight.Bold,
-                    color = Color(0xFF333333)
+                    color = MaterialTheme.colorScheme.onSurface
                 )
             }
             Switch(
@@ -87,9 +76,9 @@ fun AlarmItemCard(
                 modifier = Modifier.padding(end = 16.dp),
                 colors = SwitchDefaults.colors(
                     checkedThumbColor = MaterialTheme.colorScheme.primary,
-                    uncheckedThumbColor = MaterialTheme.colorScheme.error,
+                    uncheckedThumbColor = MaterialTheme.colorScheme.secondary,
                     checkedTrackColor = MaterialTheme.colorScheme.primary.copy(alpha = 0.5f),
-                    uncheckedTrackColor = MaterialTheme.colorScheme.error.copy(alpha = 0.5f)
+                    uncheckedTrackColor = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f)
                 )
             )
             IconButton(
@@ -104,7 +93,7 @@ fun AlarmItemCard(
             ) {
                 Icon(
                     imageVector = Icons.Filled.Delete,
-                    contentDescription = "Delete To-Do",
+                    contentDescription = "Delete Alarm",
                     tint = MaterialTheme.colorScheme.onErrorContainer
                 )
             }
@@ -118,10 +107,10 @@ fun AlarmListScreen(
     modifier: Modifier = Modifier
 ) {
     val activeAlarms by alarmViewmodel.activeAlarms.observeAsState(initial = emptyList())
-    var currentTime by remember { mutableStateOf(com.example.todo_alarms.alarmmanager.getFormattedTime()) }
+    var currentTime by remember { mutableStateOf(getFormattedTime()) }
     LaunchedEffect(Unit) {
         while (true) {
-            currentTime = com.example.todo_alarms.alarmmanager.getFormattedTime()
+            currentTime = getFormattedTime()
             delay(1000L)
         }
     }
@@ -143,10 +132,8 @@ fun AlarmListScreen(
                 text = "No active alarms",
                 fontSize = 24.sp,
                 fontWeight = FontWeight.Bold,
-                color = Color(0xFF333333)
+                color = MaterialTheme.colorScheme.onSurface
             )
-
-
         }
     } else {
         LazyColumn(
@@ -159,14 +146,13 @@ fun AlarmListScreen(
                     modifier = Modifier
                         .fillMaxWidth()
                         .padding(vertical = 8.dp),
-                    elevation = CardDefaults.cardElevation(defaultElevation = 4.dp),
-
+                    elevation = CardDefaults.cardElevation(4.dp)
                 ) {
                     Column(
                         modifier = Modifier
                             .fillMaxWidth()
                             .padding(16.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
+                        horizontalAlignment = Alignment.CenterHorizontally
                     ) {
                         Text(
                             text = currentTime,
@@ -192,6 +178,7 @@ fun AlarmListScreen(
         }
     }
 }
+
 fun getFormattedTime(): String {
     val dateFormat = SimpleDateFormat("hh:mm a", Locale.getDefault())
     return dateFormat.format(Date())
